@@ -1,40 +1,41 @@
 # 80|20 deployment image
 
-Build a release image from GitHub without using local kernel or package source:
+This Dockerfile builds a complete 80|20 image from tagged GitHub releases. It
+does not use kernel or package source from your local machine.
+
+## Build
 
 ```sh
-docker build --build-arg VERSION=0.1 -t the8020:0.1 .
+git clone https://github.com/the8020/deploy.git
+cd deploy
+docker build --build-arg VERSION=0.2 --tag the8020:0.2 .
 ```
 
-`VERSION` is a two-number release line. `0.1` selects the newest `0.1.x`
-kernel. Each default package selects its newest compatible tag with the same
-major and a minor no newer than the requested minor.
+`VERSION` is required and must be `major.minor`. For `0.2`, the build selects
+the newest `0.2.x` kernel and the newest compatible default packages from the
+same major release, up to minor version `2`.
 
-Run the image on HTTP port 80 and SSH port 22:
+## Run
 
 ```sh
 docker volume create the8020-data
-docker run --name the8020 \
+docker run --detach --name the8020 \
   --security-opt seccomp=unconfined \
-  -p 80:80 \
-  -p 22:22 \
-  -v the8020-data:/8020 \
-  the8020:0.1
+  --publish 80:80 \
+  --publish 22:22 \
+  --volume the8020-data:/8020 \
+  the8020:0.2
 ```
 
 Open <http://localhost/> and sign in with `admin` / `admin`.
 
-For a new data volume, override the initial user with:
+To use different initial credentials, add these options when starting a fresh
+data volume:
 
 ```sh
-docker run --name the8020 \
-  --security-opt seccomp=unconfined \
-  -p 80:80 \
-  -p 22:22 \
-  -v the8020-data:/8020 \
-  -e THE8020_USERNAME=alice \
-  -e THE8020_PASSWORD='choose-a-password' \
-  the8020:0.1
+--env THE8020_USERNAME=alice \
+--env THE8020_PASSWORD='choose-a-password'
 ```
 
-Existing users are never changed by these environment variables.
+The credential variables only create the first user. They never modify users
+already stored in the volume.

@@ -95,7 +95,7 @@ EXPOSE 80/tcp 22/tcp
 STOPSIGNAL SIGTERM
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD ["/usr/local/bin/admin", "--root", "/8020", "system", "status"]
+    CMD ["/usr/local/bin/admin", "--root", "/8020", "kernel.status"]
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["serve"]
