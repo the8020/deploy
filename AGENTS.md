@@ -136,6 +136,9 @@ No child DOX documents. This document owns the entire local scope.
   for nested rootless gVisor; publish HTTP and SSH ports as documented.
 - Initial username/password environment values affect only first-user bootstrap
   on a fresh volume. Existing users are preserved.
+- The runtime image includes curl. The kernel-owned entrypoint announces
+  readiness only after creating or preserving the initial login user and
+  receiving HTTP 200 from the public login service on the configured main port.
 
 # Work Guidance
 
