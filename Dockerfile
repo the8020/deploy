@@ -84,6 +84,7 @@ RUN apt-get update \
 
 COPY --from=builder /usr/local/src/the8020/.development/bin/kernel /usr/local/bin/kernel
 COPY --from=builder /usr/local/src/the8020/.development/bin/admin /usr/local/bin/admin
+COPY --from=builder /usr/local/src/the8020/.development/bin/logd /usr/local/bin/logd
 COPY --from=builder /usr/local/src/the8020/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY --from=builder /usr/local/src/the8020/defaults/config/runtime/smoke-portable.sh /usr/local/lib/the8020/smoke-portable.sh
 COPY --from=builder /usr/local/share/the8020/release /usr/local/share/the8020/release

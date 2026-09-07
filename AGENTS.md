@@ -132,6 +132,8 @@ No child DOX documents. This document owns the entire local scope.
   release build.
 - Build and initialize `/8020`, retain selected release metadata, and persist
   runtime data through the `/8020` volume.
+- Install the kernel-built `kernel`, `admin`, and `logd` executables together in
+  `/usr/local/bin`; the kernel resolves its logging daemon beside itself.
 - Container execution requires the documented unconfined outer seccomp profile
   for nested rootless gVisor; publish HTTP and SSH ports as documented.
 - Initial username/password environment values affect only first-user bootstrap
