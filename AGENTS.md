@@ -142,6 +142,13 @@ No child DOX documents. This document owns the entire local scope.
 
 # Work Guidance
 
+- Compose deployment from the kernel installer and independently released
+  packages. Keep application behavior in those packages; do not patch it into
+  the image build or change the kernel to compensate for a package defect.
+- Keep release metadata authoritative and build artifacts derived. Verify
+  deployment fixes through the existing fresh-volume smoke at the layer that
+  owns the failure.
+
 - Keep release selection and build/run documentation aligned with the Dockerfile
   and the owning kernel installation contract.
 
