@@ -104,6 +104,11 @@ Default section order:
 When the user requests a durable behavior change, record it here or in the
 relevant child AGENTS.md
 
+- Keep the Dockerfile universal across release lines: copy semantic artifact
+  directories. Dockerfiles own deployment assembly and disposable build-cache
+  cleanup; keep those specifications out of the kernel installer. Do not
+  enumerate individual binaries, helper files, or runtime modules in copies.
+
 ## Child DOX Index
 
 This root retains repository-wide contracts and files outside the child scopes
@@ -132,8 +137,10 @@ No child DOX documents. This document owns the entire local scope.
   release build.
 - Build and initialize `/8020`, retain selected release metadata, and persist
   runtime data through the `/8020` volume.
-- Install the kernel-built `kernel`, `admin`, and `logd` executables together in
-  `/usr/local/bin`; the kernel resolves its logging daemon beside itself.
+- Copy the selected kernel's complete `.development/bin/` and `docker/rootfs/`
+  payloads, the release-metadata directory, and the initialized instance. The
+  Dockerfile owns destination paths and build-cache cleanup. The kernel's local
+  Dockerfile builds its tagged checkout without a remote version selector.
 - Container execution requires the documented unconfined outer seccomp profile
   for nested rootless gVisor; publish HTTP and SSH ports as documented.
 - Initial username/password environment values affect only first-user bootstrap

@@ -15,6 +15,14 @@ docker build --build-arg VERSION=0.2 --tag the8020:0.2 .
 the newest `0.2.x` kernel and the newest compatible default packages from the
 same major release, up to minor version `2`.
 
+The Dockerfile combines the complete built-executable directory, Docker runtime
+assets, release metadata, and initialized instance. New executables and helper
+assets do not require new Dockerfile copy rules. Image assembly and build-cache
+cleanup stay in Dockerfiles.
+
+To build a kernel release already cloned locally, use that checkout's own
+`Dockerfile`: `docker build --tag the8020 .` needs no build arguments.
+
 ## Run
 
 ```sh
