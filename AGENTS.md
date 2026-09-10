@@ -135,6 +135,9 @@ No child DOX documents. This document owns the entire local scope.
 - Resolve compatible first-party package tags through the selected kernel's
   ordinary installer. Never copy local kernel or package sources into the
   release build.
+- The build stage supplies Python 3 for the kernel's workspace prototype build.
+  Its complete executable payload includes the process-preserving development
+  runtime; development activation must not fall back to the legacy build.
 - Build and initialize `/8020`, retain selected release metadata, and persist
   runtime data through the `/8020` volume.
 - Copy the selected kernel's complete `.development/bin/` and `docker/rootfs/`

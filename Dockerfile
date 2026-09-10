@@ -20,6 +20,7 @@ RUN apt-get update \
         ca-certificates \
         curl \
         git \
+        python3 \
     && rm -rf /var/lib/apt/lists/*
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

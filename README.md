@@ -8,12 +8,17 @@ does not use kernel or package source from your local machine.
 ```sh
 git clone https://github.com/the8020/deploy.git
 cd deploy
-docker build --build-arg VERSION=0.2 --tag the8020:0.2 .
+docker build --build-arg VERSION=0.6 --tag the8020:0.6 .
 ```
 
-`VERSION` is required and must be `major.minor`. For `0.2`, the build selects
-the newest `0.2.x` kernel and the newest compatible default packages from the
-same major release, up to minor version `2`.
+`VERSION` is required and must be `major.minor`. For `0.6`, the build selects
+the newest `0.6.x` kernel and the newest compatible default packages from the
+same major release, up to minor version `6`.
+
+The 0.6.3 installer includes process-preserving development activation. Pull the
+current deploy checkout before rebuilding so its build dependencies are present.
+Use a fresh test volume when moving from 0.6.2: the new activation stage changes
+a database constraint. Retain the previous volume for its data and private work.
 
 The Dockerfile combines the complete built-executable directory, Docker runtime
 assets, release metadata, and initialized instance. New executables and helper
@@ -32,7 +37,7 @@ docker run --detach --name the8020 \
   --publish 80:80 \
   --publish 22:22 \
   --volume the8020-data:/8020 \
-  the8020:0.2
+  the8020:0.6
 ```
 
 Open <http://localhost/> and sign in with `admin` / `admin`.
