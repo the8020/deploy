@@ -62,7 +62,9 @@ RUN install -d -m 0755 /8020 \
         /8020/node/kernel/runtime/downloads \
         /8020/node/kernel/runtime/gvisor \
         /8020/node/kernel/runtime/tmp \
-        /8020/node/kernel/runtime/verification-deno-cache
+        /8020/node/kernel/runtime/verification-deno-cache \
+    && mv /8020/node/kernel/bin /usr/local/share/the8020/runtime-bin \
+    && ln -s /usr/local/share/the8020/runtime-bin /8020/node/kernel/bin
 
 FROM debian:trixie-slim
 

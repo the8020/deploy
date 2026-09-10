@@ -136,8 +136,11 @@ No child DOX documents. This document owns the entire local scope.
   ordinary installer. Never copy local kernel or package sources into the
   release build.
 - The build stage supplies Python 3 for the kernel's workspace prototype build.
-  Its complete executable payload includes the process-preserving development
-  runtime; development activation must not fall back to the legacy build.
+  Move the complete initialized `node/kernel/bin/` payload into
+  `/usr/local/share/the8020/runtime-bin/` and link its node path. This ships one
+  engine for services, jobs and development outside the data volume. The kernel
+  entrypoint refreshes that link and smoke-checks the engine on every start,
+  retaining user/package/database data in existing volumes.
 - Build and initialize `/8020`, retain selected release metadata, and persist
   runtime data through the `/8020` volume.
 - Copy the selected kernel's complete `.development/bin/` and `docker/rootfs/`

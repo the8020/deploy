@@ -20,6 +20,10 @@ current deploy checkout before rebuilding so its build dependencies are present.
 Use a fresh test volume when moving from 0.6.2: the new activation stage changes
 a database constraint. Retain the previous volume for its data and private work.
 
+Current builds use one common sandbox engine for development, services and jobs.
+Its executable payload stays in the image; startup links the node's runtime path
+to it and checks it again, including with an existing 0.6.3 data volume.
+
 The Dockerfile combines the complete built-executable directory, Docker runtime
 assets, release metadata, and initialized instance. New executables and helper
 assets do not require new Dockerfile copy rules. Image assembly and build-cache
