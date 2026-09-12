@@ -56,3 +56,8 @@ data volume:
 
 The credential variables only create the first user. They never modify users
 already stored in the volume.
+
+The newly created initial user receives role `**` with `"*" = "*"` through
+ordinary auth commands. Interrupted first-user grants resume on restart.
+Existing completed volumes retain their role assignments. Releases containing
+this integration must also publish a compatible `the8020/auth` package tag.
