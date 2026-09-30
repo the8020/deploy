@@ -24,6 +24,12 @@ Current builds use one common sandbox engine for development, services and jobs.
 Its executable payload stays in the image; startup links the node's runtime path
 to it and checks it again, including with an existing 0.6.3 data volume.
 
+From kernel 0.7.3, the generic Deno runtime definitions and sandbox images also
+ship outside the data volume. On startup, the entrypoint refreshes them in an
+existing volume when they differ from the image, so runtime SDK changes reach
+upgraded instances. Users, packages, development sandboxes and the database are
+left untouched.
+
 The Dockerfile combines the complete built-executable directory, Docker runtime
 assets, release metadata, and initialized instance. New executables and helper
 assets do not require new Dockerfile copy rules. Image assembly and build-cache

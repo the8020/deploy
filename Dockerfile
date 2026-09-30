@@ -64,7 +64,17 @@ RUN install -d -m 0755 /8020 \
         /8020/node/kernel/runtime/tmp \
         /8020/node/kernel/runtime/verification-deno-cache \
     && mv /8020/node/kernel/bin /usr/local/share/the8020/runtime-bin \
-    && ln -s /usr/local/share/the8020/runtime-bin /8020/node/kernel/bin
+    && ln -s /usr/local/share/the8020/runtime-bin /8020/node/kernel/bin \
+    && if grep -q '^readonly RUNTIME_STATE=' \
+        /usr/local/src/the8020/docker/rootfs/usr/local/bin/docker-entrypoint.sh; then \
+      install -d -m 0755 /usr/local/share/the8020/runtime-state \
+      && mv /8020/node/kernel/runtime/definitions /8020/node/kernel/runtime/images \
+        /usr/local/share/the8020/runtime-state/ \
+      && cd /usr/local/share/the8020/runtime-state \
+      && { cat ../release; cat images/*/image.json; \
+        tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - definitions; } \
+        | sha256sum | cut -d' ' -f1 > id; \
+    fi
 
 FROM debian:trixie-slim
 
