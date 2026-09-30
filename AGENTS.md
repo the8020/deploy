@@ -149,6 +149,13 @@ No child DOX documents. This document owns the entire local scope.
   engine for services, jobs and development outside the data volume. The kernel
   entrypoint refreshes that link and smoke-checks the engine on every start,
   retaining user/package/database data in existing volumes.
+- When the selected kernel's entrypoint declares `RUNTIME_STATE`, also move the
+  initialized `node/kernel/runtime/definitions/` and `images/` into
+  `/usr/local/share/the8020/runtime-state/` and write its `id` from the release
+  metadata, every `images/*/image.json`, and a normalized definitions archive.
+  That entrypoint refreshes an existing volume's platform runtime from this
+  payload. Older kernel lines keep both directories in the instance unchanged,
+  so one Dockerfile stays valid across release lines.
 - Build and initialize `/8020`, retain selected release metadata, and persist
   runtime data through the `/8020` volume.
 - Copy the selected kernel's complete `.development/bin/` and `docker/rootfs/`
