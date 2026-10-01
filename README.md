@@ -49,7 +49,8 @@ Docker runtime assets, and release metadata. It omits the builder's database,
 users, node identity, and private keys. First startup creates fresh IDs and keys
 for each volume, including when several containers use the same image. New
 executables and helper assets do not require individual Dockerfile copy rules.
-Image assembly and build-cache cleanup stay in Dockerfiles.
+Both Dockerfiles use `build-image.sh` to select and build the release, prepare
+shared runtime assets, and clean disposable build state.
 
 To build a kernel release already cloned locally, use that checkout's own
 `Dockerfile`: `docker build --tag the8020 .` needs no build arguments.
@@ -88,7 +89,7 @@ this integration must also publish a compatible `the8020/auth` package tag.
 
 ## Dev/prod image
 
-`Dockerfile.dev-prod` adds a second independent system to the ordinary image.
+`Dockerfile.dev-prod` builds two independent systems in one image.
 Dev uses `/8020` and ports **80/22**; prod uses `/8020-prod` and ports
 **8080/2222**. Both start through the same first-user bootstrap, with `admin` /
 `admin` by default and the same `THE8020_USERNAME` and `THE8020_PASSWORD`
@@ -104,26 +105,15 @@ state, HTTP Git, `deployments.connect`, system-scoped authentication cookies,
 and encrypted secret storage. Earlier kernel patches predate the complete pair
 implementation.
 
-Build the ordinary base image first, then extend it with the second system:
+Build the complete pair directly from this repository:
 
 ```sh
-docker build --build-arg VERSION=0.7 --tag the8020:dev-prod-base .
 docker build --file Dockerfile.dev-prod \
-  --build-arg BASE_IMAGE=the8020:dev-prod-base --tag the8020:dev-prod .
+  --build-arg VERSION=0.7 --tag the8020:dev-prod .
 ```
 
-If you already have a compatible base image, skip the first command and use its
-tag for `BASE_IMAGE`. The pair reuses that image's selected packages and runtime
-assets.
-
-To build the base from a sibling kernel checkout instead, use the command below
-in place of the first build. Its HEAD must have a release tag. It builds local
-kernel sources but still downloads tagged packages, so compatible package tags
-must already be published:
-
-```sh
-docker build --tag the8020:dev-prod-base ../kernel
-```
+The shared build script selects the kernel and packages once. Both systems use
+those same versions; no separately built application image is required.
 
 ### Run
 

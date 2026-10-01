@@ -104,10 +104,14 @@ Default section order:
 When the user requests a durable behavior change, record it here or in the
 relevant child AGENTS.md
 
-- Keep the Dockerfile universal across release lines: copy semantic artifact
-  directories. Dockerfiles own deployment assembly and disposable build-cache
-  cleanup; keep those specifications out of the kernel installer. Do not
-  enumerate individual binaries, helper files, or runtime modules in copies.
+- Both images build directly from this repository in one Docker command. Share
+  release build/setup through scripts; never require a separately built
+  application image or a `BASE_IMAGE` argument for the dev/prod image.
+- Keep Dockerfiles universal across release lines: copy semantic artifact
+  directories. This repository owns deployment assembly and disposable
+  build-cache cleanup; keep those specifications out of the kernel installer.
+  Do not enumerate individual binaries, helper files, or runtime modules in
+  copies.
 - Certificate persistence is optional. HTTPS packaging must work with
   certificate state in the container's writable layer and must not require a
   persistent volume.
@@ -126,8 +130,8 @@ No child DOX documents. This document owns the entire local scope.
 
 # Ownership
 
-- Own `Dockerfile`, `Dockerfile.dev-prod`, the pair's startup script, and the
-  documented build/run workflows in `README.md`.
+- Own `Dockerfile`, `Dockerfile.dev-prod`, shared `build-image.sh`, the pair's
+  startup script, and documented build/run workflows in `README.md`.
 - The kernel repository owns installation, image materialization, the
   entrypoint, and runtime health behavior; packages own application sources and
   compatible release tags.
@@ -147,6 +151,10 @@ No child DOX documents. This document owns the entire local scope.
 - Resolve compatible first-party package tags through the selected kernel's
   ordinary installer. Never copy local kernel or package sources into the
   release build.
+- Both Dockerfiles build from Debian and call the same `build-image.sh` for
+  tagged source selection, installation, runtime asset preparation, release
+  metadata, and build-cache cleanup. The pair copies the resolved package set
+  into two fresh instances within that build.
 - The build stage supplies Python 3 for the kernel's workspace prototype build.
   Move the complete initialized `node/kernel/bin/` payload into
   `/usr/local/share/the8020/runtime-bin/` and link its node path. This ships one
@@ -167,8 +175,8 @@ No child DOX documents. This document owns the entire local scope.
   and keys; persist them through the `/8020` volume.
 - Copy the selected kernel's complete `.development/bin/` and `docker/rootfs/`
   payloads, the release-metadata directory, and the instance's code/runtime. The
-  Dockerfile owns destination paths and build-cache cleanup. The kernel's local
-  Dockerfile builds its tagged checkout without a remote version selector.
+  deploy build owns destination paths and build-cache cleanup. The kernel's
+  local Dockerfile builds its tagged checkout without a remote version selector.
 - Container execution requires the documented unconfined outer seccomp profile
   for nested rootless gVisor; publish HTTP and SSH ports as documented.
 - Initial username/password environment values affect only first-user bootstrap
@@ -176,12 +184,12 @@ No child DOX documents. This document owns the entire local scope.
 - The runtime image includes curl. The kernel-owned entrypoint announces
   readiness only after creating or preserving the initial login user and
   receiving HTTP 200 from the public login service on the configured main port.
-- `Dockerfile.dev-prod` extends a built single-system image. Dev retains `/8020`
+- `Dockerfile.dev-prod` builds the complete pair directly. Dev uses `/8020`
   and HTTP/SSH 80/22; prod uses `/8020-prod` and 8080/2222. Initialize prod
   through the kernel and copy only installed packages and scripts; never clone
-  the database, users, or node identity. Require the base image's runtime-state
-  payload; the common kernel entrypoint restores definitions/images separately
-  into each instance before startup.
+  the database, users, or node identity. Require the selected kernel's
+  runtime-state payload; the common kernel entrypoint restores
+  definitions/images separately into each instance before startup.
 - Clear prod's build-time node identity by restoring its empty `kernel.toml`
   marker after initialization. Each first-started pair, including another
   container using the same image, must receive independent system/node IDs and
@@ -231,9 +239,14 @@ No child DOX documents. This document owns the entire local scope.
 
 - `README.md` documents the Docker build and fresh-volume run smoke; use an
   existing release line for `VERSION`.
+- Run `bash -n build-image.sh dev-prod.sh dev-prod_test.sh` and
+  `python3 build-image_test.py`. The build-script check uses an isolated chroot
+  with real filesystem tools and installer/Git doubles; it requires root and
+  covers release selection, invalid/missing releases, metadata, runtime asset
+  packaging, and cache cleanup for current and older kernel entrypoints.
 - The image health check invokes `admin --root /8020 kernel.status`.
-- For the pair, run `bash -n dev-prod.sh dev-prod_test.sh`, then with Deno on
-  PATH `bash dev-prod_test.sh` for secure connection setup, failure cleanup,
+- For the pair, with Deno on PATH run `bash dev-prod_test.sh` for secure
+  connection setup, failure cleanup,
   ports, and restart preservation using process doubles. Run the documented
   image build/run smoke. Verify both login pages and SSH listeners, different
   system IDs and roles, different signing-key fingerprints, deployment
