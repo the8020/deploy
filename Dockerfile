@@ -23,8 +23,9 @@ RUN apt-get update \
         python3 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --chmod=755 build-image.sh /usr/local/bin/build-image.sh
-RUN /usr/local/bin/build-image.sh "$VERSION"
+COPY build-image.sh /usr/local/bin/build-image.sh
+RUN chmod 0755 /usr/local/bin/build-image.sh \
+    && /usr/local/bin/build-image.sh "$VERSION"
 
 FROM debian:trixie-slim
 

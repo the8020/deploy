@@ -23,8 +23,9 @@ RUN apt-get update \
         python3 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --chmod=755 build-image.sh /usr/local/bin/build-image.sh
-RUN /usr/local/bin/build-image.sh "$VERSION"
+COPY build-image.sh /usr/local/bin/build-image.sh
+RUN chmod 0755 /usr/local/bin/build-image.sh \
+    && /usr/local/bin/build-image.sh "$VERSION"
 
 FROM debian:trixie-slim
 
@@ -68,7 +69,8 @@ RUN grep -Fq 'INSTANCE_ROOT=${THE8020_INSTANCE_ROOT:-/8020}' /usr/local/bin/dock
     done \
     && test -f /8020/packages/the8020/deployments/cbus/commands/connect.toml
 
-COPY --chmod=755 dev-prod.sh /usr/local/bin/dev-prod.sh
+COPY dev-prod.sh /usr/local/bin/dev-prod.sh
+RUN chmod 0755 /usr/local/bin/dev-prod.sh
 
 WORKDIR /8020
 VOLUME ["/8020", "/8020-prod"]

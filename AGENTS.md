@@ -155,6 +155,8 @@ No child DOX documents. This document owns the entire local scope.
   tagged source selection, installation, runtime asset preparation, release
   metadata, and build-cache cleanup. The pair copies the resolved package set
   into two fresh instances within that build.
+- Keep both Dockerfiles compatible with the legacy builder and BuildKit. Set
+  copied script permissions with `RUN chmod 0755`, not `COPY --chmod`.
 - The build stage supplies Python 3 for the kernel's workspace prototype build.
   Move the complete initialized `node/kernel/bin/` payload into
   `/usr/local/share/the8020/runtime-bin/` and link its node path. This ships one
