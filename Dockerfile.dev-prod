@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1
+# Build the ordinary release image first; see README.md.
+ARG BASE_IMAGE=the8020:latest
+FROM ${BASE_IMAGE}
+
+# Both instances use the kernel-owned first-user bootstrap.
+RUN grep -Fq 'INSTANCE_ROOT=${THE8020_INSTANCE_ROOT:-/8020}' /usr/local/bin/docker-entrypoint.sh \
+    && test -f /usr/local/share/the8020/runtime-state/id \
+    || { echo 'The base image needs the multi-instance entrypoint and bundled runtime-state payload.' >&2; exit 1; }
+
+# Copy installed code; the common entrypoint restores runtime assets for both
+# systems. The ordinary initializer/bootstrap creates fresh identities and data.
+RUN kernel --root /8020-prod --init-defaults --init-only \
+    && install -m 0600 /dev/null /8020-prod/kernel.toml \
+    && for directory in packages scripts; do \
+      mkdir -p "/8020-prod/$directory" \
+        && cp -a "/8020/$directory/." "/8020-prod/$directory/" || exit 1; \
+    done \
+    && test -f /8020/packages/the8020/deployments/cbus/commands/connect.toml
+
+COPY --chmod=755 dev-prod.sh /usr/local/bin/dev-prod.sh
+
+VOLUME ["/8020-prod"]
+EXPOSE 80/tcp 22/tcp 8080/tcp 2222/tcp
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD /usr/local/bin/dev-prod.sh health
+ENTRYPOINT ["/usr/local/bin/dev-prod.sh"]
+CMD ["serve"]

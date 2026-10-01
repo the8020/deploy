@@ -108,6 +108,9 @@ relevant child AGENTS.md
   directories. Dockerfiles own deployment assembly and disposable build-cache
   cleanup; keep those specifications out of the kernel installer. Do not
   enumerate individual binaries, helper files, or runtime modules in copies.
+- Certificate persistence is optional. HTTPS packaging must work with
+  certificate state in the container's writable layer and must not require a
+  persistent volume.
 
 ## Child DOX Index
 
@@ -123,7 +126,8 @@ No child DOX documents. This document owns the entire local scope.
 
 # Ownership
 
-- Own `Dockerfile` and the documented build/run workflow in `README.md`.
+- Own `Dockerfile`, `Dockerfile.dev-prod`, the pair's startup script, and the
+  documented build/run workflows in `README.md`.
 - The kernel repository owns installation, image materialization, the
   entrypoint, and runtime health behavior; packages own application sources and
   compatible release tags.
@@ -156,10 +160,13 @@ No child DOX documents. This document owns the entire local scope.
   That entrypoint refreshes an existing volume's platform runtime from this
   payload. Older kernel lines keep both directories in the instance unchanged,
   so one Dockerfile stays valid across release lines.
-- Build and initialize `/8020`, retain selected release metadata, and persist
-  runtime data through the `/8020` volume.
+- Build packages/runtime assets in `/8020` and retain selected release metadata.
+  The final image copies packages, scripts, and runtime assets, with an empty
+  `kernel.toml` marker. Do not copy the builder's database, users, node IDs,
+  master/SSH keys, or other node state. First startup creates fresh identities
+  and keys; persist them through the `/8020` volume.
 - Copy the selected kernel's complete `.development/bin/` and `docker/rootfs/`
-  payloads, the release-metadata directory, and the initialized instance. The
+  payloads, the release-metadata directory, and the instance's code/runtime. The
   Dockerfile owns destination paths and build-cache cleanup. The kernel's local
   Dockerfile builds its tagged checkout without a remote version selector.
 - Container execution requires the documented unconfined outer seccomp profile
@@ -169,8 +176,44 @@ No child DOX documents. This document owns the entire local scope.
 - The runtime image includes curl. The kernel-owned entrypoint announces
   readiness only after creating or preserving the initial login user and
   receiving HTTP 200 from the public login service on the configured main port.
+- `Dockerfile.dev-prod` extends a built single-system image. Dev retains `/8020`
+  and HTTP/SSH 80/22; prod uses `/8020-prod` and 8080/2222. Initialize prod
+  through the kernel and copy only installed packages and scripts; never clone
+  the database, users, or node identity. Require the base image's runtime-state
+  payload; the common kernel entrypoint restores definitions/images separately
+  into each instance before startup.
+- Clear prod's build-time node identity by restoring its empty `kernel.toml`
+  marker after initialization. Each first-started pair, including another
+  container using the same image, must receive independent system/node IDs and
+  master keys unless a master key is explicitly provisioned.
+- `dev-prod.sh` reuses the kernel entrypoint with `THE8020_INSTANCE_ROOT`,
+  including its credentials, account grants, readiness, and shutdown. It sets
+  the two system profiles through `system/profile.ts`, preserving their IDs.
+  Each kernel generates its own master key; an explicit `THE8020_SIGNING_KEY`
+  provisions both. Stop all children when any exits. The default roots are
+  `/8020` and `/8020-prod`; a supplied instance root selects dev and its `-prod`
+  sibling. Resolve the common entrypoint through the image's PATH.
+- After both systems are ready, `deployments.connect` uses secure password stdin
+  to connect dev to itself and prod, and prod to dev over loopback. Private
+  `node/docker/dev-prod.done` markers in both volumes record complete pair
+  setup. Interrupted setup retries; completed volumes retain profiles,
+  connections, and accounts despite bootstrap environment changes.
+- The pair connects directly over HTTP on ports 80/8080. Transport security is
+  the system owner's choice; no TLS proxy or certificate provisioning is added.
+  Retain separate volumes and their master keys. Users-package cookies include
+  the database system ID and support simultaneous logins on one hostname.
+- Require compatible releases of the kernel and affected packages for the
+  multi-instance entrypoint, connection command, scoped cookies, and encrypted
+  storage. The two systems copy the same resolved package versions and start
+  with fresh databases; never bake credentials or connections into image layers.
 
 # Work Guidance
+
+- Build only what the request and established contracts require. Before adding a
+  mechanism, identify that need and why existing owners or standard tools cannot
+  meet it. Do not invent stronger guarantees for hypothetical cases. Remove
+  unsupported additions at closeout; agent-written tests and DOX do not
+  authorize them. Preserve required correctness, security, and data integrity.
 
 - Compose deployment from the kernel installer and independently released
   packages. Keep application behavior in those packages; do not patch it into
@@ -179,11 +222,21 @@ No child DOX documents. This document owns the entire local scope.
   deployment fixes through the existing fresh-volume smoke at the layer that
   owns the failure.
 
-- Keep release selection and build/run documentation aligned with the Dockerfile
-  and the owning kernel installation contract.
+- Keep the single-system and dev/prod build/run paths easy to find in
+  `README.md`. Show complete commands, compatible-release prerequisites, and
+  first-start connection behavior, aligned with the Dockerfiles and the owning
+  kernel installation contract.
 
 # Verification
 
 - `README.md` documents the Docker build and fresh-volume run smoke; use an
   existing release line for `VERSION`.
 - The image health check invokes `admin --root /8020 kernel.status`.
+- For the pair, run `bash -n dev-prod.sh dev-prod_test.sh`, then with Deno on
+  PATH `bash dev-prod_test.sh` for secure connection setup, failure cleanup,
+  ports, and restart preservation using process doubles. Run the documented
+  image build/run smoke. Verify both login pages and SSH listeners, different
+  system IDs and roles, different signing-key fingerprints, deployment
+  connections in both directions over HTTP, same-hostname cookie isolation,
+  encrypted secret rows, and preserved identities/accounts after restart. The
+  pair's health check is `dev-prod.sh health` and covers both systems.
