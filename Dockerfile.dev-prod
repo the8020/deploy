@@ -27,6 +27,9 @@ COPY build-image.sh /usr/local/bin/build-image.sh
 RUN chmod 0755 /usr/local/bin/build-image.sh \
     && /usr/local/bin/build-image.sh "$VERSION"
 
+COPY https/ /usr/local/src/the8020-https/
+RUN bash /usr/local/src/the8020-https/bootstrap.sh build
+
 FROM debian:trixie-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -72,13 +75,15 @@ RUN grep -Fq 'INSTANCE_ROOT=${THE8020_INSTANCE_ROOT:-/8020}' /usr/local/bin/dock
 COPY dev-prod.sh /usr/local/bin/dev-prod.sh
 RUN chmod 0755 /usr/local/bin/dev-prod.sh
 
+RUN bash /usr/local/share/the8020/https/bootstrap.sh
+
 WORKDIR /8020
 VOLUME ["/8020", "/8020-prod"]
-EXPOSE 80/tcp 22/tcp 8080/tcp 2222/tcp
+EXPOSE 80/tcp 9080/tcp 443/tcp 22/tcp 8080/tcp 9081/tcp 8443/tcp 2222/tcp
 STOPSIGNAL SIGTERM
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD /usr/local/bin/dev-prod.sh health
 
-ENTRYPOINT ["/usr/local/bin/dev-prod.sh"]
+ENTRYPOINT ["/usr/local/bin/https-entrypoint", "dev-prod"]
 CMD ["serve"]

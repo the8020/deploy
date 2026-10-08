@@ -27,6 +27,9 @@ COPY build-image.sh /usr/local/bin/build-image.sh
 RUN chmod 0755 /usr/local/bin/build-image.sh \
     && /usr/local/bin/build-image.sh "$VERSION"
 
+COPY https/ /usr/local/src/the8020-https/
+RUN bash /usr/local/src/the8020-https/bootstrap.sh build
+
 FROM debian:trixie-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -53,6 +56,8 @@ COPY --from=builder /8020/packages/ /8020/packages/
 COPY --from=builder /8020/scripts/ /8020/scripts/
 COPY --from=builder /8020/node/kernel/runtime/ /8020/node/kernel/runtime/
 
+RUN bash /usr/local/share/the8020/https/bootstrap.sh
+
 # Ship code and runtime assets, with fresh database, identities and keys per volume.
 RUN install -d -m 0700 /8020/node/kernel /8020/database \
     && install -d -m 0755 /8020/users \
@@ -61,11 +66,11 @@ RUN install -d -m 0700 /8020/node/kernel /8020/database \
 WORKDIR /8020
 VOLUME ["/8020"]
 
-EXPOSE 80/tcp 22/tcp
+EXPOSE 80/tcp 9080/tcp 443/tcp 22/tcp
 STOPSIGNAL SIGTERM
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD ["/usr/local/bin/admin", "--root", "/8020", "kernel.status"]
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/https-entrypoint", "single"]
 CMD ["serve"]

@@ -1,165 +1,58 @@
-# 80|20 deployment images
+# Run 80|20 with Docker
 
-Choose a single system or a connected development/production pair:
-
-| Image | Dockerfile | HTTP ports | SSH ports |
-| --- | --- | --- | --- |
-| [Single system](#single-system-image) | `Dockerfile` | 80 | 22 |
-| [Dev/prod pair](#devprod-image) | `Dockerfile.dev-prod` | 80 / 8080 | 22 / 2222 |
-
-## Get the repository
+Choose one system or a connected development/production pair.
 
 ```sh
 git clone https://github.com/the8020/deploy.git
 cd deploy
 ```
 
-Run the commands below from this directory. The release build downloads tagged
-kernel and package sources from GitHub; it does not use local workspace sources.
-
-## Single-system image
-
-### Build
+## Single system
 
 ```sh
-docker build --build-arg VERSION=0.7 --tag the8020:0.7 .
+docker build --build-arg VERSION=0.7 -t the8020 .
+docker run -p 8888:9080 -p 8443:443 -p 2222:22 the8020
 ```
 
-`VERSION` is required and must be `major.minor`. For `0.7`, the build selects
-the newest `0.7.x` kernel and the newest compatible default packages from the
-same major release, up to minor version `7`.
+Open <http://localhost:8888/> and sign in with **admin / admin**.
+HTTPS is at <https://localhost:8443/>; SSH uses port 2222.
 
-The 0.6.3 installer includes process-preserving development activation. Pull the
-current deploy checkout before rebuilding so its build dependencies are present.
-Use a fresh test volume when moving from 0.6.2: the new activation stage changes
-a database constraint. Retain the previous volume for its data and private work.
+## Development + production
 
-Current builds use one common sandbox engine for development, services and jobs.
-Its executable payload stays in the image; startup links the node's runtime path
-to it and checks it again, including with an existing 0.6.3 data volume.
-
-From kernel 0.7.3, the generic Deno runtime definitions and sandbox images also
-ship outside the data volume. On startup, the entrypoint refreshes them in an
-existing volume when they differ from the image, so runtime SDK changes reach
-upgraded instances. Users, packages, development sandboxes and the database are
-left untouched.
-
-The Dockerfile ships the complete built-executable directory, packages, scripts,
-Docker runtime assets, and release metadata. It omits the builder's database,
-users, node identity, and private keys. First startup creates fresh IDs and keys
-for each volume, including when several containers use the same image. New
-executables and helper assets do not require individual Dockerfile copy rules.
-Both Dockerfiles use `build-image.sh` to select and build the release, prepare
-shared runtime assets, and clean disposable build state.
-
-To build a kernel release already cloned locally, use that checkout's own
-`Dockerfile`: `docker build --tag the8020 .` needs no build arguments.
-
-### Run
+Two independent systems, connected automatically.
 
 ```sh
-docker volume create the8020-data
-docker run --detach --name the8020 \
-  --security-opt seccomp=unconfined \
-  --publish 80:80 \
-  --publish 22:22 \
-  --volume the8020-data:/8020 \
-  the8020:0.7
+docker build -f Dockerfile.dev-prod --build-arg VERSION=0.7 -t the8020:dev-prod .
+docker run -p 8888:9080 -p 8443:443 -p 2222:22 \
+  -p 8889:9081 -p 8444:8443 -p 2223:2222 the8020:dev-prod
 ```
 
-Open <http://localhost/> and sign in with `admin` / `admin`.
+| System | HTTP | HTTPS | SSH port |
+| --- | --- | --- | --- |
+| Development | <http://localhost:8888/> | <https://localhost:8443/> | 2222 |
+| Production | <http://localhost:8889/> | <https://localhost:8444/> | 2223 |
 
-## Initial credentials for either image
+Sign in with **admin / admin** on either system.
 
-To use different initial credentials, add these options when starting a fresh
-data volume:
+The commands run in the foreground; press Ctrl+C to stop. Each new container
+starts fresh. In `-p 8888:9080`, `8888` is your computer's port.
 
-```sh
---env THE8020_USERNAME=alice \
---env THE8020_PASSWORD='choose-a-password'
-```
+## HTTPS
 
-The credential variables only create the first user. They never modify users
-already stored in the volume.
+On a VPS, use `-p 80:9080 -p 443:443` for the main HTTP/HTTPS bindings and point
+your domain at it. Certificates are issued and renewed automatically.
 
-The newly created initial user receives role `**` with `"*" = "*"` through
-ordinary auth commands. Interrupted first-user grants resume on restart.
-Existing completed volumes retain their role assignments. Releases containing
-this integration must also publish a compatible `the8020/auth` package tag.
+Local HTTPS uses a local CA, so your browser will warn until you trust it.
+For an IP address, set `tls.ip_address` in [https/https.toml](https/https.toml).
 
-## Dev/prod image
+Edit that TOML before building to change defaults. In a running container it is
+at `/etc/the8020/https.toml`; enrollment limits update without a restart.
+`THE8020_HTTPS_DIR` selects certificate storage, default `/var/lib/the8020/https`.
 
-`Dockerfile.dev-prod` builds two independent systems in one image.
-Dev uses `/8020` and ports **80/22**; prod uses `/8020-prod` and ports
-**8080/2222**. Both start through the same first-user bootstrap, with `admin` /
-`admin` by default and the same `THE8020_USERNAME` and `THE8020_PASSWORD`
-overrides. Their databases, package checkouts, users, and system identities are
-separate. Startup sets their names and environment roles to
-Development/development and Production/production.
+## Other options
 
-### Build
+- Change the initial login by adding `-e THE8020_USERNAME=alice -e THE8020_PASSWORD='choose-a-password'`.
+- Sandbox startup under Docker's default seccomp policy requires
+  `--security-opt seccomp=unconfined`.
 
-Use release line `0.7`, with kernel 0.7.4 or newer and the matching updated
-packages. These releases include the multi-instance entrypoint, bundled runtime
-state, HTTP Git, `deployments.connect`, system-scoped authentication cookies,
-and encrypted secret storage. Earlier kernel patches predate the complete pair
-implementation.
-
-Build the complete pair directly from this repository:
-
-```sh
-docker build --file Dockerfile.dev-prod \
-  --build-arg VERSION=0.7 --tag the8020:dev-prod .
-```
-
-The shared build script selects the kernel and packages once. Both systems use
-those same versions; no separately built application image is required.
-
-### Run
-
-Use fresh volumes for the first deployment:
-
-```sh
-docker run --detach --name the8020-dev-prod \
-  --security-opt seccomp=unconfined \
-  --cpus=2 --memory=4g \
-  --publish 80:80 --publish 22:22 \
-  --publish 8080:8080 --publish 2222:2222 \
-  --volume the8020-dev:/8020 --volume the8020-prod:/8020-prod \
-  the8020:dev-prod
-```
-
-Open dev at <http://localhost/> and prod at <http://localhost:8080/>. Each
-system uses a cookie named `the8020_auth_sys-<10-character ID>`, so both logins
-coexist on the same hostname. SSH uses `ssh -p 22 admin@localhost` for dev and
-`ssh -p 2222 admin@localhost` for prod.
-
-### Automatic connections and persistence
-
-Connection initialization runs on the first container startup, after both
-systems become ready. It does not run during `docker build`.
-
-Startup connects dev to prod at `http://127.0.0.1:8080` and prod to dev at
-`http://127.0.0.1`, using the initial username/password. Dev also records itself
-as its development Git source. The ordinary `deployments.connect` command
-verifies the remote identity and receives its password through secure stdin.
-Passwords are encrypted by the secrets package before database storage.
-Interrupted setup retries on startup. Completed volumes retain profiles,
-accounts, and connections. Changing bootstrap credentials later does not update
-them.
-
-Each system generates and persists its own master key. Cross-system deployment
-uses HTTP Basic account credentials and does not require matching master keys.
-An explicitly supplied `THE8020_SIGNING_KEY` provisions both systems with that
-value through the ordinary kernel contract.
-
-These URLs are internal to the container. Published host ports can be remapped
-without changing them. Transport security remains the system owner's choice.
-Keep both volumes and their private master-key files when restarting the pair.
-Use fresh volumes for this storage contract: legacy UUID profiles and plaintext
-secret rows are not migrated. Replacing a master key makes existing encrypted
-secrets unreadable; retain the original key to retain access.
-
-The container health check checks both kernels and both HTTP endpoints. Stopping
-the container stops both kernels; an unexpected child exit also stops the pair.
-Allow normal kernel cleanup with `docker stop --time 60 the8020-dev-prod`.
+More configuration and checks: [deployment](AGENTS.md), [HTTPS](https/AGENTS.md).

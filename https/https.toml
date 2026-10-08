@@ -1,0 +1,14 @@
+# Copied to /etc/the8020/https.toml by the image bootstrap.
+# Limits are read on each unfamiliar-name request; zero pauses enrollment.
+[limits]
+new_names_per_hour = 2
+max_names = 10
+concurrent_checks = 2
+check_timeout_seconds = 3
+
+# TLS settings take effect when the container starts.
+[tls]
+acme_ca = "https://acme-v02.api.letsencrypt.org/directory"
+# Optional public or LAN IP, needed for IP clients without SNI behind Docker NAT.
+# Public IPs use short-lived ACME certificates; LAN IPs use the local CA.
+ip_address = ""

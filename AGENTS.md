@@ -115,23 +115,36 @@ relevant child AGENTS.md
 - Certificate persistence is optional. HTTPS packaging must work with
   certificate state in the container's writable layer and must not require a
   persistent volume.
+- Own automatic HTTPS in deploy bootstrap scripts. Keep enrollment limits in
+  TOML, editable before building and during runtime, without requiring a domain
+  list or changing the kernel/application repositories.
+- Automatic HTTPS must not add Python or another language runtime to the final
+  images. Compile its standalone helper in the existing builder stage.
+- Keep README examples short and human-readable: foreground `docker run` with
+  port bindings only, without names, explicit volumes, resource/security flags,
+  or detach. Use local host HTTP 8888 for single/dev and 8889 for prod, with
+  matching browser URLs. Document required host options separately. Omit
+  release-specific history/upgrade notes; keep technical details/checks in DOX.
 
 ## Child DOX Index
 
 This root retains repository-wide contracts and files outside the child scopes
 below.
 
-No child DOX documents. This document owns the entire local scope.
+- [https/AGENTS.md](https/AGENTS.md): Proxy installation, automatic certificate
+  admission, TOML configuration, certificate storage, and proxy lifecycle checks.
 
 # Purpose
 
 - Build the release-based 80|20 deployment image from tagged GitHub
-  repositories.
+  repositories, with optional-persistence automatic HTTPS.
 
 # Ownership
 
 - Own `Dockerfile`, `Dockerfile.dev-prod`, shared `build-image.sh`, the pair's
   startup script, and documented build/run workflows in `README.md`.
+- `https/` owns the shared image bootstrap and outer proxy entrypoint; underlying
+  single-system and pair startup remain owned by their existing scripts.
 - The kernel repository owns installation, image materialization, the
   entrypoint, and runtime health behavior; packages own application sources and
   compatible release tags.
@@ -179,8 +192,9 @@ No child DOX documents. This document owns the entire local scope.
   payloads, the release-metadata directory, and the instance's code/runtime. The
   deploy build owns destination paths and build-cache cleanup. The kernel's
   local Dockerfile builds its tagged checkout without a remote version selector.
-- Container execution requires the documented unconfined outer seccomp profile
-  for nested rootless gVisor; publish HTTP and SSH ports as documented.
+- Nested rootless gVisor needs an outer seccomp policy that permits it; Docker's
+  default policy requires `--security-opt seccomp=unconfined`. Document this
+  separately from the README's minimal port-binding examples.
 - Initial username/password environment values affect only first-user bootstrap
   on a fresh volume. Existing users are preserved.
 - The runtime image includes curl. The kernel-owned entrypoint announces
@@ -209,9 +223,11 @@ No child DOX documents. This document owns the entire local scope.
   setup. Interrupted setup retries; completed volumes retain profiles,
   connections, and accounts despite bootstrap environment changes.
 - The pair connects directly over HTTP on ports 80/8080. Transport security is
-  the system owner's choice; no TLS proxy or certificate provisioning is added.
-  Retain separate volumes and their master keys. Users-package cookies include
-  the database system ID and support simultaneous logins on one hostname.
+  the system owner's choice. The outer proxy adds public HTTPS 443/8443 without
+  changing these internal connections. Publish HTTP through Caddy on 9080/9081;
+  kernels retain internal HTTP 80/8080. Retain separate volumes and their master
+  keys. Users-package cookies include the database system ID and support
+  simultaneous logins on one hostname.
 - Require compatible releases of the kernel and affected packages for the
   multi-instance entrypoint, connection command, scoped cookies, and encrypted
   storage. The two systems copy the same resolved package versions and start
@@ -233,9 +249,10 @@ No child DOX documents. This document owns the entire local scope.
   owns the failure.
 
 - Keep the single-system and dev/prod build/run paths easy to find in
-  `README.md`. Show complete commands, compatible-release prerequisites, and
-  first-start connection behavior, aligned with the Dockerfiles and the owning
-  kernel installation contract.
+  `README.md`. Show minimal build/run commands and automatic pair connections,
+  aligned with the Dockerfiles and the owning kernel installation contract.
+  Keep release prerequisites, implementation details, and checks in this DOX and
+  its children.
 
 # Verification
 
@@ -247,6 +264,10 @@ No child DOX documents. This document owns the entire local scope.
   covers release selection, invalid/missing releases, metadata, runtime asset
   packaging, and cache cleanup for current and older kernel entrypoints.
 - The image health check invokes `admin --root /8020 kernel.status`.
+- Follow [HTTPS verification](https/AGENTS.md#verification) for admission,
+  real-proxy, and process-lifecycle checks. Both Dockerfiles install the same
+  proxy bootstrap and retain the underlying health checks; proxy/helper failure
+  stops the outer entrypoint and its instances.
 - For the pair, with Deno on PATH run `bash dev-prod_test.sh` for secure
   connection setup, failure cleanup,
   ports, and restart preservation using process doubles. Run the documented
