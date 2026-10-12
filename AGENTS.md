@@ -173,16 +173,19 @@ below.
 - The build stage supplies Python 3 for the kernel's workspace prototype build.
   Move the complete initialized `node/kernel/bin/` payload into
   `/usr/local/share/the8020/runtime-bin/` and link its node path. This ships one
-  engine for services, jobs and development outside the data volume. The kernel
-  entrypoint refreshes that link and smoke-checks the engine on every start,
-  retaining user/package/database data in existing volumes.
+  engine for services, jobs and development as the image's initial payload.
+  Updater-capable kernels seed a volume-owned platform release once and keep
+  its installed version on restart; older kernel lines retain their original
+  image-owned startup behavior.
 - When the selected kernel's entrypoint declares `RUNTIME_STATE`, also move the
   initialized `node/kernel/runtime/definitions/` and `images/` into
   `/usr/local/share/the8020/runtime-state/` and write its `id` from the release
   metadata, every `images/*/image.json`, and a normalized definitions archive.
-  That entrypoint refreshes an existing volume's platform runtime from this
-  payload. Older kernel lines keep both directories in the instance unchanged,
-  so one Dockerfile stays valid across release lines.
+  When host kernel scripts are installed, copy them and development helpers into
+  that payload too. Updater-capable entrypoints use it only for initial seeding;
+  legacy entrypoints retain their image refresh contract. Older kernel lines
+  keep both directories in the instance unchanged, so one Dockerfile stays
+  valid across release lines.
 - Build packages/runtime assets in `/8020` and retain selected release metadata.
   The final image copies packages, scripts, and runtime assets, with an empty
   `kernel.toml` marker. Do not copy the builder's database, users, node IDs,
@@ -262,7 +265,8 @@ below.
   `python3 build-image_test.py`. The build-script check uses an isolated chroot
   with real filesystem tools and installer/Git doubles; it requires root and
   covers release selection, invalid/missing releases, metadata, runtime asset
-  packaging, and cache cleanup for current and older kernel entrypoints.
+  packaging including updater/helpers, and cache cleanup for current and older
+  kernel entrypoints.
 - The image health check invokes `admin --root /8020 kernel.status`.
 - Follow [HTTPS verification](https/AGENTS.md#verification) for admission,
   real-proxy, and process-lifecycle checks. Both Dockerfiles install the same

@@ -10,7 +10,7 @@ import tempfile
 source = Path(__file__).resolve().parent
 assert os.geteuid() == 0, "Run this chroot check as root"
 
-for bundled in (True, False):
+for bundled, updatable in ((True, False), (False, False), (True, True)):
     with tempfile.TemporaryDirectory(prefix="the8020-image-test-") as directory:
         root = Path(directory)
 
@@ -21,7 +21,7 @@ for bundled in (True, False):
             shutil.copy2(path, target)
 
         for command in ("bash", "install", "mkdir", "rm", "mv", "ln", "grep",
-                        "cat", "tar", "sha256sum", "cut", "find"):
+                        "cat", "tar", "sha256sum", "cut", "find", "cp"):
             binary = shutil.which(command)
             assert binary, command
             copy(binary)
@@ -62,7 +62,14 @@ printf engine > node/kernel/bin/engine
 printf sdk > node/kernel/runtime/definitions/sdk
 printf '{}' > node/kernel/runtime/images/rootless/image.json
 printf '{}' > node/kernel/runtime/images/workspace/image.json
+if [[ -f /updater ]]; then
+  mkdir -p node/kernel/scripts scripts
+  printf updater > node/kernel/scripts/update.sh
+  printf helper > scripts/activate
+fi
 ''')
+        if updatable:
+            (root / "updater").touch()
         write("/usr/local/src/the8020/docker/rootfs/usr/local/bin/docker-entrypoint.sh",
               "readonly RUNTIME_STATE=/usr/local/share/the8020/runtime-state\n"
               if bundled else "#!/bin/bash\n")
@@ -96,6 +103,9 @@ printf '{}' > node/kernel/runtime/images/workspace/image.json
         if bundled:
             assert re.fullmatch(r"[0-9a-f]{64}\n", (payload / "runtime-state/id").read_text())
             assert (payload / "runtime-state/definitions/sdk").read_text() == "sdk"
+            if updatable:
+                assert (payload / "runtime-state/kernel-scripts/update.sh").read_text() == "updater"
+                assert (payload / "runtime-state/development-scripts/activate").read_text() == "helper"
         else:
             assert not (payload / "runtime-state").exists()
 
