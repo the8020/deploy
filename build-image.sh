@@ -43,6 +43,10 @@ ln -s /usr/local/share/the8020/runtime-bin /8020/node/kernel/bin
 if grep -q '^readonly RUNTIME_STATE=' \
     /usr/local/src/the8020/docker/rootfs/usr/local/bin/docker-entrypoint.sh; then
   install -d -m 0755 /usr/local/share/the8020/runtime-state
+  if [[ -d /8020/node/kernel/scripts ]]; then
+    cp -a /8020/node/kernel/scripts /usr/local/share/the8020/runtime-state/kernel-scripts
+    cp -a /8020/scripts /usr/local/share/the8020/runtime-state/development-scripts
+  fi
   mv /8020/node/kernel/runtime/definitions /8020/node/kernel/runtime/images \
     /usr/local/share/the8020/runtime-state/
   cd /usr/local/share/the8020/runtime-state
