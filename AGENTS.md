@@ -112,14 +112,12 @@ relevant child AGENTS.md
   build-cache cleanup; keep those specifications out of the kernel installer.
   Do not enumerate individual binaries, helper files, or runtime modules in
   copies.
-- Certificate persistence is optional. HTTPS packaging must work with
-  certificate state in the container's writable layer and must not require a
-  persistent volume.
-- Own automatic HTTPS in deploy bootstrap scripts. Keep enrollment limits in
-  TOML, editable before building and during runtime, without requiring a domain
-  list or changing the kernel/application repositories.
-- Automatic HTTPS must not add Python or another language runtime to the final
-  images. Compile its standalone helper in the existing builder stage.
+- HTTPS uses the native kernel and the independently updatable `the8020/https`
+  package. Configuration, certificates, and enrollment budgets belong in its
+  database; private material belongs to secrets. No separate certificate volume,
+  proxy, or certificate daemon is required.
+- Compile the one-time legacy-state reader in the existing builder stage. HTTPS
+  packaging adds no Python or other runtime interpreter to final images.
 - Keep README examples short and human-readable: foreground `docker run` with
   port bindings only, without names, explicit volumes, resource/security flags,
   or detach. Use local host HTTP 8888 for single/dev and 8889 for prod, with
@@ -131,19 +129,19 @@ relevant child AGENTS.md
 This root retains repository-wide contracts and files outside the child scopes
 below.
 
-- [https/AGENTS.md](https/AGENTS.md): Proxy installation, automatic certificate
-  admission, TOML configuration, certificate storage, and proxy lifecycle checks.
+- [https/AGENTS.md](https/AGENTS.md): Native HTTPS image startup, one-time Caddy
+  state migration, compatibility checks, and lifecycle verification.
 
 # Purpose
 
-- Build the release-based 80|20 deployment image from tagged GitHub
-  repositories, with optional-persistence automatic HTTPS.
+- Build the release-based 80|20 deployment images from tagged GitHub
+  repositories, with native HTTPS and database-owned certificate management.
 
 # Ownership
 
 - Own `Dockerfile`, `Dockerfile.dev-prod`, shared `build-image.sh`, the pair's
   startup script, and documented build/run workflows in `README.md`.
-- `https/` owns the shared image bootstrap and outer proxy entrypoint; underlying
+- `https/` owns image HTTPS preparation and legacy-state conversion; underlying
   single-system and pair startup remain owned by their existing scripts.
 - The kernel repository owns installation, image materialization, the
   entrypoint, and runtime health behavior; packages own application sources and
@@ -161,6 +159,10 @@ below.
 
 - Require `VERSION=<major.minor>` without leading zeroes and select the newest
   kernel patch in that exact release line.
+- The current deployment requires native HTTPS from kernel 0.9 or newer and
+  compatible packages. Earlier deployment tags retain their older image
+  contracts. Retained volumes keep their installed kernel and package versions;
+  image replacement does not silently upgrade them.
 - Resolve compatible first-party package tags through the selected kernel's
   ordinary installer. Never copy local kernel or package sources into the
   release build.
@@ -225,12 +227,15 @@ below.
   `node/docker/dev-prod.done` markers in both volumes record complete pair
   setup. Interrupted setup retries; completed volumes retain profiles,
   connections, and accounts despite bootstrap environment changes.
-- The pair connects directly over HTTP on ports 80/8080. Transport security is
-  the system owner's choice. The outer proxy adds public HTTPS 443/8443 without
-  changing these internal connections. Publish HTTP through Caddy on 9080/9081;
-  kernels retain internal HTTP 80/8080. Retain separate volumes and their master
-  keys. Users-package cookies include the database system ID and support
-  simultaneous logins on one hostname.
+- The pair connects directly over HTTP on ports 80/8080. Native additional HTTP
+  listeners preserve public 9080/9081, and native HTTPS uses 443/8443. Both HTTP
+  ports of each system share its router without a proxy. Retain separate volumes
+  and their master keys. Users-package cookies include the database system ID
+  and support simultaneous logins on one hostname.
+- Pair preparation sets development's public challenge fallback to production's
+  HTTP origin once. The HTTPS package handles one bounded public challenge hop;
+  certificate and account state remain independent. Existing bootstrap markers
+  preserve administrator choices on restart.
 - Require compatible releases of the kernel and affected packages for the
   multi-instance entrypoint, connection command, scoped cookies, and encrypted
   storage. The two systems copy the same resolved package versions and start
@@ -268,10 +273,10 @@ below.
   packaging including updater/helpers, and cache cleanup for current and older
   kernel entrypoints.
 - The image health check invokes `admin --root /8020 kernel.status`.
-- Follow [HTTPS verification](https/AGENTS.md#verification) for admission,
-  real-proxy, and process-lifecycle checks. Both Dockerfiles install the same
-  proxy bootstrap and retain the underlying health checks; proxy/helper failure
-  stops the outer entrypoint and its instances.
+- Follow [HTTPS verification](https/AGENTS.md#verification) for migration and
+  process-lifecycle checks. Both Dockerfiles install the same native bootstrap
+  and retain the underlying health checks. Preparation failures close its child
+  processes without enabling TLS; normal startup execs the existing entrypoint.
 - For the pair, with Deno on PATH run `bash dev-prod_test.sh` for secure
   connection setup, failure cleanup,
   ports, and restart preservation using process doubles. Run the documented

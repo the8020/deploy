@@ -31,10 +31,12 @@ trap 'exit 143' TERM HUP
 trap 'exit 130' INT
 
 start() {
-  local root=$1 port=$2 ssh=$3 name=$4 role=$5 pid deadline response
+  local root=$1 port=$2 ssh=$3 name=$4 role=$5 tls=$6 http=$7 pid deadline response
+  if [[ ${THE8020_HTTPS_MIGRATING:-} == 1 ]]; then tls=0; fi
   echo "startup: starting $name on HTTP $port and SSH $ssh" >&2
   THE8020_INSTANCE_ROOT="$root" THE8020_NETWORK_MAIN_PORT="$port" \
-    THE8020_NETWORK_SSH_PORT="$ssh" "$ENTRYPOINT" serve &
+    THE8020_NETWORK_SSH_PORT="$ssh" THE8020_NETWORK_HTTPS_PORT="$tls" \
+    THE8020_NETWORK_ADDITIONAL_HTTP_PORT="$http" "$ENTRYPOINT" serve &
   pid=$!
   pids+=("$pid")
   deadline=$((SECONDS + 360))
@@ -62,8 +64,8 @@ start() {
   '
 }
 
-start "$DEV" 80 22 Development development
-start "$PROD" 8080 2222 Production production
+start "$DEV" 80 22 Development development "${THE8020_NETWORK_HTTPS_PORT:-443}" "${THE8020_NETWORK_ADDITIONAL_HTTP_PORT:-9080}"
+start "$PROD" 8080 2222 Production production 8443 9081
 if [[ ! -f "$DEV/node/docker/dev-prod.done" || ! -f "$PROD/node/docker/dev-prod.done" ]]; then
   echo 'startup: connecting development and production' >&2
   connect() {

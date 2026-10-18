@@ -21,7 +21,7 @@ cat > "$TEST_ROOT/bin/docker-entrypoint.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p "$THE8020_INSTANCE_ROOT/node/docker"
-printf '%s %s\n' "$THE8020_NETWORK_MAIN_PORT" "$THE8020_NETWORK_SSH_PORT" >> "$TEST_ROOT/ports"
+printf '%s %s %s %s\n' "$THE8020_NETWORK_MAIN_PORT" "$THE8020_NETWORK_SSH_PORT" "$THE8020_NETWORK_HTTPS_PORT" "$THE8020_NETWORK_ADDITIONAL_HTTP_PORT" >> "$TEST_ROOT/ports"
 # The common entrypoint owns initial users and each independent key.
 touch "$THE8020_INSTANCE_ROOT/node/docker/initial-user.done"
 sleep 60 &
@@ -89,8 +89,8 @@ wait_ready
 [[ $(wc -l < "$TEST_ROOT/profiles") == 2 ]]
 grep -Fq '"name":"Development","role":"development"' "$TEST_ROOT/profiles"
 grep -Fq '"name":"Production","role":"production"' "$TEST_ROOT/profiles"
-grep -Fxq '80 22' "$TEST_ROOT/ports"
-grep -Fxq '8080 2222' "$TEST_ROOT/ports"
+grep -Fxq '80 22 443 9080' "$TEST_ROOT/ports"
+grep -Fxq '8080 2222 8443 9081' "$TEST_ROOT/ports"
 grep -Fq 'deployments.connect http://127.0.0.1 deployer --password-stdin' "$TEST_ROOT/connections"
 grep -Fq 'deployments.connect http://127.0.0.1:8080 deployer --password-stdin' "$TEST_ROOT/connections"
 stop_pair
@@ -102,5 +102,13 @@ wait_ready
 [[ $(wc -l < "$TEST_ROOT/connections") == 3 ]]
 [[ $(wc -l < "$TEST_ROOT/profiles") == 2 ]]
 bash "$SOURCE_ROOT/dev-prod.sh" health
+stop_pair
+
+# Migration closes TLS on both systems without changing their HTTP paths.
+export THE8020_HTTPS_MIGRATING=1
+start_pair
+wait_ready
+grep -Fxq '80 22 0 9080' "$TEST_ROOT/ports"
+grep -Fxq '8080 2222 0 9081' "$TEST_ROOT/ports"
 stop_pair
 echo 'Dev/prod startup checks passed'
