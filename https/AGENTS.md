@@ -2,85 +2,96 @@ Parent DOX: [deploy](../AGENTS.md).
 
 # Purpose
 
-- Bootstrap and run automatic HTTPS for both deployment images.
+- Prepare native HTTPS for both deployment images and import supported state
+  from their former bundled Caddy deployment.
 
 # Ownership
 
-- Own `bootstrap.sh`, `proxy.go`, shipped `https.toml`, the Go module, and
-  `proxy_test.go`.
-- Caddy owns TLS, ACME, certificate selection/storage/renewal, HTTP proxying,
-  and WebSocket transport. This scope owns admission policy and image startup.
-- Kernels and application packages retain their HTTP and authentication contracts.
+- Own `bootstrap.sh`, `entrypoint.sh`, the one-time `https-migrate` Go reader,
+  its TOML dependency, and deployment lifecycle checks.
+- Kernel owns HTTP/TLS transport. `the8020/https` owns shared policy, issuance,
+  renewal, certificate records, and administration. Secrets owns private keys.
+- The existing kernel entrypoint and `dev-prod.sh` own normal process startup,
+  initial users, connections, and shutdown. No proxy or certificate daemon runs.
 
 # Local Contracts
 
-- Bootstrap's `build` phase uses the kernel builder's Go toolchain to compile a
-  standalone, CGO-free entrypoint. The `install` phase installs checksum-verified
-  Caddy, links that binary, preserves Caddy/Go/TOML license notices, and installs
-  `/etc/the8020/https.toml`. Final images contain no Go helper sources or
-  toolchain and gain no installed Python/interpreter runtime.
-- One proxy serves each container: HTTP 9080/HTTPS 443 to kernel port 80;
-  the pair additionally serves HTTP 9081/HTTPS 8443 to kernel port 8080.
-  Publish host HTTP 80/8080 to 9080/9081. Internal HTTP 80/8080 stays unchanged.
-  Single-system upstreams honor `THE8020_NETWORK_MAIN_PORT`; reject a collision
-  with proxy ports 443/9080.
-- `THE8020_HTTPS_DIR` selects private certificate/admission storage, default
-  `/var/lib/the8020/https`. A volume is optional. `provided/` accepts PEM
-  certificate-and-key bundles, selected by their SANs and renewed externally.
-- `THE8020_HTTPS_CONFIG` selects TOML, default `/etc/the8020/https.toml`.
-  Limits reload for every unfamiliar-name admission. Invalid limits deny new
-  admission; existing admitted names remain eligible for renewal. TLS settings
-  take effect at startup. Zero enrollment/name limits pause new enrollment.
-- Admission normalizes names, limits attempts before DNS/network work, and
-  persists attempts and admitted names in private `admissions.json`, bounded to
-  1 MiB and saved through atomic replacement. Invalid state fails startup rather
-  than resetting budgets. Failed checks consume the hourly allowance; admission
-  reserves a name before ACME, including failed
-  issuance. Names remain recorded, so lowering limits does not revoke them.
-- A timed HTTP challenge checks reachability through the requested name before
-  ACME. One Go context bounds DNS and HTTP together; connections pin resolved
-  public addresses, reject mixed public/private answers, and follow no redirects.
-  The loopback helper has at most 32 open connections and no public ask route.
-- Local certificates cover localhost and loopback. Optional `tls.ip_address`
-  selects the no-SNI certificate behind Docker NAT: configuring a public IP uses
-  Let's Encrypt's short-lived profile for all public certificates; private IPs
-  use the local CA. Unknown external IPs cannot be inferred from a first HTTPS
-  handshake. Clients must trust the local CA for local certificates. No CA keys
-  or certificates enter image layers.
-- Proxy and instance startup share shutdown: any child exit stops the container;
-  TERM/INT forwards graceful shutdown with a 60-second deadline. Bootstrap
-  credentials reach only the instance entrypoint, never Caddy. DNS/HTTP admission
-  checks run inside the helper without additional processes.
-- Preserve original Host, forwarded HTTPS scheme, streaming, and upgrades.
-  The existing kernel reports the proxy socket's client IP, not forwarded IPs;
-  local token authority still requires the native authentication marker.
+- Bootstrap builds the CGO-free reader with the existing Go toolchain and ships
+  Go/TOML license notices. Installation links the reader and shell entrypoint;
+  it downloads no Caddy and installs no runtime interpreter or TLS TOML.
+- Require native HTTPS from kernel 0.9 or newer and the HTTPS package. Retained
+  volumes keep their installed releases; reject older retained kernels and
+  missing packages before migration. Custom container commands still exec
+  directly with their original exit status.
+- Single/dev uses native HTTP 80 and 9080, HTTPS 443, and SSH 22. Production uses
+  HTTP 8080 and 9081, HTTPS 8443, and SSH 2222. Single-system main-port overrides
+  continue to work. The node-local HTTPS/additional-HTTP environment settings
+  select single/dev ports; zero HTTPS keeps TLS closed.
+- First startup prepares ordinary instances with TLS port zero, waits for the
+  initialized application runtime and HTTPS package, imports legacy state if
+  present, and forces local publication.
+  Pair setup assigns development's challenge fallback to `http://127.0.0.1:8080`.
+  Only after both systems accept preparation does it record private
+  `node/docker/native-https.done` markers, stop preparation, and exec normal
+  startup. Preparation is bounded to 900 seconds with a 60-second forced-stop
+  deadline. Failures never enable TLS or remove original certificate files.
+- Markers cover image preparation only. Configuration and imported identity are
+  authoritative in the database; the package's import digest makes interrupted
+  retries idempotent. Completed image restarts do not reread old files, import
+  keys, or replace administrator settings.
+- Legacy inputs use `THE8020_HTTPS_CONFIG` (default `/etc/the8020/https.toml`)
+  and `THE8020_HTTPS_DIR` (default `/var/lib/the8020/https`). They are migration
+  inputs only. A fresh image has neither and uses database defaults.
+- Reader output is deterministic, limited to 256 KiB, and written exclusively to
+  a new mode-0600 file. The wrapper keeps it in a private temporary directory,
+  passes only its pathname to `https.import --state-file`, and removes it on
+  success or failure. Private bytes never enter stdout, argv, or job results.
+- Preserve original limits, configured IP/ACME directory, all admission attempts
+  (seconds converted to milliseconds), admitted names, supplied PEM pairs,
+  cached certificate/key pairs, local root CA, and supported ACME accounts.
+  Missing admission history for cached ACME certificates fails explicitly.
+- Support the bundled Caddy/CertMagic file layout, HTTPS ACME directories,
+  one account per directory, the configured directory plus Let's Encrypt
+  production/staging, and at most 100 imported certificates. Reject incomplete
+  pairs, conflicting certificates, unknown issuer directories, unsupported CA
+  layouts, multiple accounts for a directory, symlinks, invalid configuration,
+  and oversized state. The HTTPS package validates keys, chains, identities,
+  and transactionally imports all authoritative records before TLS starts.
+- Each independent dev/prod database receives the original shared legacy state
+  once, encrypted under its own master key. Subsequent issuance and renewal are
+  system-owned; only public challenge responses cross the pair's HTTP boundary.
 
 # Work Guidance
 
-- Keep this independent of application startup and databases. Use stock Caddy
-  and Go standard-library facilities plus the existing Go TOML parser; do not
-  implement TLS or ACME here. Reuse the image's Go builder, not a new runtime.
-- Enrollment budgets bound certificate abuse, not traffic floods or enrollment
-  availability during an attack. Domain reachability is not owner approval.
+- Migration is an offline read of the old proxy state. Stop Caddy before reading
+  it and preserve its original files and deployment image until import succeeds.
+- Before switching an existing installation, update its retained kernel and
+  compatible packages through their ordinary owners, keeping native TLS disabled
+  with `THE8020_NETWORK_HTTPS_PORT=0` during preparation. Preserve each database
+  and its original master key, plus the old HTTPS directory and TOML.
+- Mount/provide those legacy inputs to the new image for first startup. Remove
+  the temporary TLS-port-zero override when enabling native serving. Unsupported
+  inputs require explicit operator migration; never guess a CA, reset budgets,
+  replace keys, or silently fall back to new issuance.
+- No legacy files are deleted automatically. After successful cutover, the UUI
+  HTTPS program and ordinary HTTPS commands own configuration and replacement.
+- Enrollment limits control certificate enrollment, not general HTTP traffic.
 
 # Verification
 
-- Run `bash -n https/bootstrap.sh` and
-  `(cd https && CGO_ENABLED=0 GOMAXPROCS=2 go test -p 1 -timeout=90s -v .)` with
-  Go 1.21 or newer. Tests check the actual helper's compiled lifecycle and image
-  wiring, including the absence of an HTTPS runtime interpreter install.
-- With checksum-verified Caddy on PATH, the same test exercises real local TLS,
-  certificate reuse, both proxy destinations, headers/cookies, WebSocket
-  transport, supplied certificates, and child shutdown. All checks use isolated
-  temporary state and loopback listeners; no production ACME issuance.
-- With Pebble also on PATH, the same check exercises local ACME domain and
-  no-SNI IP issuance, the short-lived profile, real HTTP admission proof, and
-  paused enrollment. Pebble bypasses public DNS validation; DNS guards are tested
-  independently. No public CA or host trust-store changes are used.
-- Socket-based checks report a skip when the environment forbids loopback
-  listeners; report those skips rather than claiming end-to-end verification.
-- Run the parent repository's existing build/startup checks. Docker image smoke
-  remains a separate check and must be reported when unavailable.
+- Run `bash -n https/bootstrap.sh https/entrypoint.sh https/entrypoint_test.sh`.
+- With Go 1.21 or newer, run `(cd https && CGO_ENABLED=0 GOMAXPROCS=2
+  go test -p 1 -timeout=60s -v .)`. Tests cover deterministic read-only conversion,
+  private output, key/account/budget preservation, and rejection of unsupported
+  or incomplete inputs. With Caddy on PATH, a fixture verifies its real local
+  CA and certificate layout; Caddy is a test dependency only.
+- With Deno on PATH, run `bash https/entrypoint_test.sh` and
+  `bash dev-prod_test.sh`. They check preparation failures, independent pair
+  imports, publication gating, restart preservation, process cleanup, old-kernel
+  rejection, custom commands, and native port mappings through process doubles.
+- Run the parent build-script checks. Actual image startup/shutdown and the
+  native multi-node/ACME acceptance tests remain separate required checks;
+  report unavailable checks rather than treating doubles as end-to-end proof.
 
 # Child DOX Index
 
