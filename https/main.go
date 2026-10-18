@@ -7,6 +7,13 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 3 && os.Args[1] == "--prepare-update" {
+		if err := prepareUpdate(os.Args[2]); err != nil {
+			fmt.Fprintln(os.Stderr, "HTTPS update:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) != 4 {
 		fmt.Fprintln(os.Stderr, "Usage: https-migrate <legacy-config.toml> <legacy-state-directory> <new-private-output-file>")
 		os.Exit(2)

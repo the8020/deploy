@@ -48,6 +48,14 @@ enrollment limits, uploaded certificates, and an IP address. Its advanced view
 provides the public local CA certificate. Settings and certificates are stored
 with the system database; private keys use the system's encrypted secret storage.
 
+## Existing installations
+
+For bundled Caddy installations running kernel 0.7.4 or newer, follow the
+[0.9.1 update instructions](https://github.com/the8020/kernel/blob/0.9.1/README.md#development-updates).
+Update both instances of a dev/prod pair before restarting the container once.
+The restart imports existing certificates and settings and transfers Caddy's
+ports to the kernel.
+
 ## Other options
 
 - Change the initial login by adding `-e THE8020_USERNAME=alice -e THE8020_PASSWORD='choose-a-password'`.

@@ -61,6 +61,10 @@ case "$1" in
     echo "publish $root" >> "$TEST_ROOT/events"
     if [[ -f "$TEST_ROOT/reject-publication" ]]; then exit 9; fi
     ;;
+  kernel.config.unset)
+    [[ "$2" == network.https_port ]]
+    echo "enable ports $root" >> "$TEST_ROOT/events"
+    ;;
   *) exit 10 ;;
 esac
 EOF
@@ -143,6 +147,8 @@ done
 
 # Both databases receive the same original material before enabling native TLS.
 reset_markers
+mkdir -p "$THE8020_INSTANCE_ROOT/node/docker/native-https-upgrade"
+touch "$THE8020_INSTANCE_ROOT/node/docker/native-https-upgrade/prepared"
 touch "$TEST_ROOT/runtime-pending"
 start dev-prod
 for _ in {1..200}; do
@@ -155,6 +161,7 @@ rm "$TEST_ROOT/runtime-pending"
 ready
 [[ $(grep -c '^import ' "$TEST_ROOT/events") == 2 ]]
 [[ $(grep -c '^fallback ' "$TEST_ROOT/events") == 1 ]]
+[[ $(grep -c '^enable ports ' "$TEST_ROOT/events") == 1 ]]
 grep -Fxq "fallback $THE8020_INSTANCE_ROOT" "$TEST_ROOT/events"
 grep -Fxq 'serve dev-prod.sh 443 9080' "$TEST_ROOT/events"
 [[ -f "$THE8020_INSTANCE_ROOT/node/docker/native-https.done" ]]

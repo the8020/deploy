@@ -109,9 +109,8 @@ relevant child AGENTS.md
   application image or a `BASE_IMAGE` argument for the dev/prod image.
 - Keep Dockerfiles universal across release lines: copy semantic artifact
   directories. This repository owns deployment assembly and disposable
-  build-cache cleanup; keep those specifications out of the kernel installer.
-  Do not enumerate individual binaries, helper files, or runtime modules in
-  copies.
+  build-cache cleanup; keep those specifications out of the kernel installer. Do
+  not enumerate individual binaries, helper files, or runtime modules in copies.
 - HTTPS uses the native kernel and the independently updatable `the8020/https`
   package. Configuration, certificates, and enrollment budgets belong in its
   database; private material belongs to secrets. No separate certificate volume,
@@ -176,8 +175,8 @@ below.
   Move the complete initialized `node/kernel/bin/` payload into
   `/usr/local/share/the8020/runtime-bin/` and link its node path. This ships one
   engine for services, jobs and development as the image's initial payload.
-  Updater-capable kernels seed a volume-owned platform release once and keep
-  its installed version on restart; older kernel lines retain their original
+  Updater-capable kernels seed a volume-owned platform release once and keep its
+  installed version on restart; older kernel lines retain their original
   image-owned startup behavior.
 - When the selected kernel's entrypoint declares `RUNTIME_STATE`, also move the
   initialized `node/kernel/runtime/definitions/` and `images/` into
@@ -186,8 +185,8 @@ below.
   When host kernel scripts are installed, copy them and development helpers into
   that payload too. Updater-capable entrypoints use it only for initial seeding;
   legacy entrypoints retain their image refresh contract. Older kernel lines
-  keep both directories in the instance unchanged, so one Dockerfile stays
-  valid across release lines.
+  keep both directories in the instance unchanged, so one Dockerfile stays valid
+  across release lines.
 - Build packages/runtime assets in `/8020` and retain selected release metadata.
   The final image copies packages, scripts, and runtime assets, with an empty
   `kernel.toml` marker. Do not copy the builder's database, users, node IDs,
@@ -205,12 +204,12 @@ below.
 - The runtime image includes curl. The kernel-owned entrypoint announces
   readiness only after creating or preserving the initial login user and
   receiving HTTP 200 from the public login service on the configured main port.
-- `Dockerfile.dev-prod` builds the complete pair directly. Dev uses `/8020`
-  and HTTP/SSH 80/22; prod uses `/8020-prod` and 8080/2222. Initialize prod
-  through the kernel and copy only installed packages and scripts; never clone
-  the database, users, or node identity. Require the selected kernel's
-  runtime-state payload; the common kernel entrypoint restores
-  definitions/images separately into each instance before startup.
+- `Dockerfile.dev-prod` builds the complete pair directly. Dev uses `/8020` and
+  HTTP/SSH 80/22; prod uses `/8020-prod` and 8080/2222. Initialize prod through
+  the kernel and copy only installed packages and scripts; never clone the
+  database, users, or node identity. Require the selected kernel's runtime-state
+  payload; the common kernel entrypoint restores definitions/images separately
+  into each instance before startup.
 - Clear prod's build-time node identity by restoring its empty `kernel.toml`
   marker after initialization. Each first-started pair, including another
   container using the same image, must receive independent system/node IDs and
@@ -253,19 +252,20 @@ below.
   packages. Keep application behavior in those packages; do not patch it into
   the image build or change the kernel to compensate for a package defect.
 - Keep release metadata authoritative and build artifacts derived. Verify
-  deployment fixes through the existing fresh-volume smoke at the layer that
-  owns the failure.
+  deployment fixes through a fresh native node at the layer that owns the
+  failure.
 
 - Keep the single-system and dev/prod build/run paths easy to find in
   `README.md`. Show minimal build/run commands and automatic pair connections,
-  aligned with the Dockerfiles and the owning kernel installation contract.
-  Keep release prerequisites, implementation details, and checks in this DOX and
-  its children.
+  aligned with the Dockerfiles and the owning kernel installation contract. Keep
+  release prerequisites, implementation details, and checks in this DOX and its
+  children.
 
 # Verification
 
-- `README.md` documents the Docker build and fresh-volume run smoke; use an
-  existing release line for `VERSION`.
+- Install and test fresh native nodes under `/root/8020/test<N>`. Docker image
+  build/run checks are not required. `README.md` owns operator build/run
+  instructions; use an existing release line for `VERSION`.
 - Run `bash -n build-image.sh dev-prod.sh dev-prod_test.sh` and
   `python3 build-image_test.py`. The build-script check uses an isolated chroot
   with real filesystem tools and installer/Git doubles; it requires root and
@@ -278,10 +278,9 @@ below.
   and retain the underlying health checks. Preparation failures close its child
   processes without enabling TLS; normal startup execs the existing entrypoint.
 - For the pair, with Deno on PATH run `bash dev-prod_test.sh` for secure
-  connection setup, failure cleanup,
-  ports, and restart preservation using process doubles. Run the documented
-  image build/run smoke. Verify both login pages and SSH listeners, different
-  system IDs and roles, different signing-key fingerprints, deployment
+  connection setup, failure cleanup, ports, and restart preservation using
+  process doubles. Native pair checks verify both login pages and SSH listeners,
+  different system IDs and roles, different signing-key fingerprints, deployment
   connections in both directions over HTTP, same-hostname cookie isolation,
   encrypted secret rows, and preserved identities/accounts after restart. The
   pair's health check is `dev-prod.sh health` and covers both systems.

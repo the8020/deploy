@@ -81,6 +81,9 @@ if [[ "$pending" == true ]]; then
         admin --root "$root" https.configuration '{"challengeFallback":"http://127.0.0.1:8080"}' >/dev/null
       fi
       admin --root "$root" kernel.reindex --packages the8020/https
+      if [[ -f "$root/node/docker/native-https-upgrade/prepared" ]]; then
+        admin --root "$root" kernel.config.unset network.https_port >/dev/null
+      fi
     fi
   done
   # Mark only after both independent systems have accepted their configuration.
