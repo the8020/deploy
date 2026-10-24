@@ -160,7 +160,8 @@ below.
   volumes are not regranted.
 
 - Require `VERSION=<major.minor>` without leading zeroes and select the newest
-  kernel patch in that exact release line.
+  kernel patch in that exact release line. Use `docker build --no-cache` when
+  resolving the latest release; a cached build layer retains its earlier tag.
 - The current deployment requires native HTTPS from kernel 0.9 or newer and
   compatible packages. Earlier deployment tags retain their older image
   contracts. Retained volumes keep their installed kernel and package versions;

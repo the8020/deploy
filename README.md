@@ -1,6 +1,7 @@
 # Run 80|20 with Docker
 
 Choose one system or a connected development/production pair.
+Builds use `--no-cache` to resolve the latest tagged kernel in the selected line.
 
 ```sh
 git clone https://github.com/the8020/deploy.git
@@ -10,7 +11,7 @@ cd deploy
 ## Single system
 
 ```sh
-docker build --build-arg VERSION=0.9 -t the8020 .
+docker build --no-cache --build-arg VERSION=0.9 -t the8020 .
 docker run -p 8888:9080 -p 8443:443 -p 2222:22 the8020
 ```
 
@@ -22,7 +23,7 @@ HTTPS is at <https://localhost:8443/>; SSH uses port 2222.
 Two independent systems, connected automatically.
 
 ```sh
-docker build -f Dockerfile.dev-prod --build-arg VERSION=0.9 -t the8020:dev-prod .
+docker build --no-cache -f Dockerfile.dev-prod --build-arg VERSION=0.9 -t the8020:dev-prod .
 docker run -p 8888:9080 -p 8443:443 -p 2222:22 \
   -p 8889:9081 -p 8444:8443 -p 2223:2222 the8020:dev-prod
 ```
