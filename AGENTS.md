@@ -152,11 +152,12 @@ below.
   `the8020.users.administrator` (`"*" = "*"`, declared by `the8020/users`), and
   falls back to role `**` with the same permission through
   `auth.roles.create --if-missing`, `auth.roles.grant`, and `auth.users.assign`
-  when the installed users package predates that role. No authorization policy enters Go or the supervisor. The
-  private `node/docker/initial-user.pending` marker retains the target username
-  through interrupted account/grant steps; completion removes it and writes
-  `initial-user.done`. Retries preserve an already-created account and repeat
-  idempotent role grants. Existing completed volumes are not regranted.
+  when the installed users package predates that role. No authorization policy
+  enters Go or the supervisor. The private `node/docker/initial-user.pending`
+  marker retains the target username through interrupted account/grant steps;
+  completion removes it and writes `initial-user.done`. Retries preserve an
+  already-created account and repeat idempotent role grants. Existing completed
+  volumes are not regranted.
 
 - Require `VERSION=<major.minor>` without leading zeroes and select the newest
   kernel patch in that exact release line.
@@ -254,8 +255,8 @@ below.
   packages. Keep application behavior in those packages; do not patch it into
   the image build or change the kernel to compensate for a package defect.
 - Keep release metadata authoritative and build artifacts derived. Verify
-  deployment fixes through a fresh native node at the layer that owns the
-  failure.
+  deployment fixes through a fresh system, natively or inside Docker, at the
+  layer that owns the failure.
 
 - Keep the single-system and dev/prod build/run paths easy to find in
   `README.md`. Show minimal build/run commands and automatic pair connections,
@@ -265,9 +266,11 @@ below.
 
 # Verification
 
-- Install and test fresh native nodes under `/root/8020/test<N>`. Docker image
-  build/run checks are not required. `README.md` owns operator build/run
-  instructions; use an existing release line for `VERSION`.
+- Install and test fresh systems natively under `/root/8020/test<N>` or inside
+  isolated Docker containers using Bash. Bound CPU, memory, and runtime. Test
+  the actual installed changes; an image build alone is insufficient.
+  Package-only changes can use an existing runtime image. `README.md` owns
+  operator build/run instructions; use an existing release line for `VERSION`.
 - Run `bash -n build-image.sh dev-prod.sh dev-prod_test.sh` and
   `python3 build-image_test.py`. The build-script check uses an isolated chroot
   with real filesystem tools and installer/Git doubles; it requires root and
