@@ -1,0 +1,30 @@
+#!/bin/bash
+set -eu
+umask 077
+cd /var/lib/tuxee
+mkdir -p /run/8020-desktop
+exec 9>/run/8020-desktop/lock
+flock -w 15 9
+if ! test -f .desktop-password; then
+  head -c 32 /dev/urandom | base64 > .desktop-password.new
+  { printf 'root:'; cat .desktop-password.new; } | chpasswd
+  mv .desktop-password.new .desktop-password
+fi
+work=/run/8020-desktop
+pid=$(cat "$work/pid" 2>/dev/null || true)
+if [[ -z "$pid" || ! -r "/proc/$pid/stat" ]] || ! grep -qE "^[0-9]+ \(tuxee\) [^ZX]" "/proc/$pid/stat"; then
+  printf '{}\n' > "$work/config.json"
+  setsid tuxee serve --config "$work/config.json" --bind 127.0.0.1:0 --acme off --hosts "$(hostname).localhost" --state /var/lib/tuxee </dev/null >"$work/start.log" 2>&1 9>&- &
+  echo $! > "$work/pid"
+fi
+for i in {1..100}; do
+  port=$(sed -nE 's/.*listening at https:\/\/127\.0\.0\.1:([0-9]+).*/\1/p' "$work/start.log" | tail -1)
+  if test -n "$port" && test -s tls/local-ca.pem; then
+    printf '%s\n' "$port"
+    cat .desktop-password; sed -n '/BEGIN CERTIFICATE/,/END CERTIFICATE/p' tls/local-ca.pem
+    exit
+  fi
+  sleep .1
+done
+echo 'Desktop failed to start' >&2
+exit 1

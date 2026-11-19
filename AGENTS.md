@@ -128,6 +128,8 @@ relevant child AGENTS.md
 This root retains repository-wide contracts and files outside the child scopes
 below.
 
+- [tuxee/AGENTS.md](tuxee/AGENTS.md): Local Docker desktop preview, guest setup
+  and authenticated browser gateway.
 - [https/AGENTS.md](https/AGENTS.md): Native HTTPS image startup, one-time Caddy
   state migration, compatibility checks, and lifecycle verification.
 

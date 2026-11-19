@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+root=/8020
+cd "$root"
+kernel=node/kernel/bin/kernel
+admin() { node/kernel/bin/admin --root "$root" "$@"; }
+if [[ ! -f kernel.toml ]]; then "$kernel" --root "$root" --init-defaults --init-only; fi
+bash node/kernel/scripts/launch.sh "$root" &
+pid=$!
+gateway=
+trap 'kill "$pid" ${gateway:+"$gateway"} 2>/dev/null || true' EXIT
+trap 'exit 0' TERM INT
+if [[ ! -e .preview-ready ]]; then
+  for ((i=0;i<240;i++)); do
+    if curl -fsS --max-time 4 http://127.0.0.1:18080/the8020/uui/login/ 2>/dev/null | grep -q 'name="password"'; then break; fi
+    kill -0 "$pid"; sleep 1
+  done
+  if [[ ! -f preview.password ]]; then head -c 18 /dev/urandom | base64 > preview.password; fi
+  if ! admin users.list | grep -Fx 'username: preview' >/dev/null; then
+    admin users.add preview --password-stdin < preview.password >/dev/null
+  fi
+  if ! admin auth.roles.inspect desktop-preview >/dev/null 2>&1; then
+    admin auth.roles.create desktop-preview >/dev/null
+  fi
+  admin auth.roles.grant desktop-preview the8020.dev-core.development.use '*' >/dev/null
+  admin auth.users.assign preview desktop-preview >/dev/null
+  touch .preview-ready
+  echo "Preview is ready at http://localhost:18791"
+fi
+PREVIEW_LISTEN=0.0.0.0 preview-gateway &
+gateway=$!
+wait -n "$pid" "$gateway"

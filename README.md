@@ -64,3 +64,23 @@ ports to the kernel.
   `--security-opt seccomp=unconfined`.
 
 More configuration and checks: [deployment](AGENTS.md), [HTTPS](https/AGENTS.md).
+
+## Tuxee development desktop preview
+
+Build the tagged desktop preview and run it locally.
+
+```sh
+git switch --detach 0.9.2-tuxee.1
+docker buildx bake -f tuxee/docker-bake.hcl --load tuxee
+docker run --name tuxee-preview --security-opt seccomp=unconfined -p 127.0.0.1:18791:18791 the8020:tuxee-preview
+```
+
+When the preview is ready, use a second terminal to read the password generated
+for the **preview** account.
+
+```sh
+docker exec tuxee-preview cat /8020/preview.password
+```
+
+Open <http://localhost:18791> in Chromium. In **Development → Development
+sandbox**, use **Tuxee** to open the desktop and **Terminals** to return.
